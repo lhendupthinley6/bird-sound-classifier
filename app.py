@@ -289,6 +289,14 @@ st.markdown(
             background: #ffffff;
             box-shadow: 0 10px 22px rgba(24, 54, 44, 0.06);
         }
+
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.85rem;
+        }
+
+        h3 a {
+            display: none;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -317,15 +325,15 @@ st.markdown(
 processor, model = load_model()
 bird_images = load_bird_images()
 
-upload_col, info_col = st.columns([1.35, 0.75], gap="large")
+left_col, right_col = st.columns([0.95, 1.05], gap="medium")
 
-with upload_col:
+with left_col:
     with st.container(border=True):
         st.subheader("Upload Audio")
         audio_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "flac", "ogg"])
         st.caption("Supported formats: WAV, MP3, FLAC, and OGG. Shorter clips with clear calls usually work best.")
 
-with info_col:
+with right_col:
     with st.container(border=True):
         st.subheader("Model Setup")
         st.write(
@@ -343,14 +351,20 @@ if audio_file is not None:
     bird_image = bird_images.get(normalize_bird_name(pred_label))
     description = BIRD_DESCRIPTIONS.get(pred_label, "No description is available for this prediction.")
 
-    audio_col, result_col = st.columns([0.85, 1.15], gap="large")
-
-    with audio_col:
+    with left_col:
         with st.container(border=True):
             st.subheader("Audio Preview")
             st.audio(audio_bytes)
 
-    with result_col:
+        with st.container(border=True):
+            st.subheader("Species Preview")
+            if bird_image:
+                st.image(str(bird_image), caption=display_bird_name(pred_label), width=280)
+            elif pred_label.lower() != "background":
+                st.info("No matching bird image found in the Bird_img folder.")
+            st.markdown(f'<p class="bird-description">{description}</p>', unsafe_allow_html=True)
+
+    with right_col:
         with st.container(border=True):
             st.markdown(
                 f"""
@@ -367,18 +381,6 @@ if audio_file is not None:
             with time_col:
                 st.metric("Analysis Window", f"{MAX_AUDIO_SECONDS}s max")
 
-    detail_col, ranking_col = st.columns([0.9, 1.1], gap="large")
-
-    with detail_col:
-        with st.container(border=True):
-            st.subheader("Species Preview")
-            if bird_image:
-                st.image(str(bird_image), caption=display_bird_name(pred_label), width=280)
-            elif pred_label.lower() != "background":
-                st.info("No matching bird image found in the Bird_img folder.")
-            st.markdown(f'<p class="bird-description">{description}</p>', unsafe_allow_html=True)
-
-    with ranking_col:
         with st.container(border=True):
             st.subheader("Top Matches")
             for name, prob in sorted_probs:
@@ -387,11 +389,12 @@ if audio_file is not None:
     if confidence < 60:
         st.warning("Low confidence - result may not be reliable")
 else:
-    st.markdown(
-        """
-        <div class="empty-state">
-            Upload an audio clip to see the prediction, confidence score, species image, and the top matching bird calls.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with left_col:
+        st.markdown(
+            """
+            <div class="empty-state">
+                Upload an audio clip to see the prediction, confidence score, species image, and the top matching bird calls.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
