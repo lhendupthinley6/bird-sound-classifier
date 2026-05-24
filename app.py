@@ -110,17 +110,128 @@ def predict_audio(audio_bytes, suffix):
 
 
 st.set_page_config(page_title="Bird Sound Classifier", page_icon="bird")
-st.title("Bird Sound Classifier")
-st.write("Upload a bird audio file and the model will identify the species.")
-st.warning(
-    "Disclaimer: This model may not always predict correctly. Results can be affected by poor sound quality, "
-    "background noise, overlapping bird calls, very short clips, or species that sound similar."
+st.markdown(
+    """
+    <style>
+        .stApp {
+            background: #f6f8f4;
+        }
+
+        .block-container {
+            max-width: 980px;
+            padding-top: 2rem;
+            padding-bottom: 3rem;
+        }
+
+        .app-header {
+            border-left: 6px solid #3b7f5f;
+            padding: 0.15rem 0 0.3rem 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .app-header h1 {
+            color: #18362c;
+            font-size: 2.2rem;
+            line-height: 1.15;
+            margin: 0;
+        }
+
+        .app-header p {
+            color: #4c5f57;
+            font-size: 1rem;
+            margin: 0.45rem 0 0;
+        }
+
+        .section-panel {
+            background: #ffffff;
+            border: 1px solid #dfe7df;
+            border-radius: 8px;
+            padding: 1.1rem 1.2rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 10px 24px rgba(35, 59, 48, 0.06);
+        }
+
+        .section-panel h3 {
+            color: #18362c;
+            font-size: 1.05rem;
+            margin: 0 0 0.65rem;
+        }
+
+        .disclaimer {
+            background: #fff8e6;
+            border: 1px solid #f0d48b;
+            border-left: 5px solid #c58b17;
+            border-radius: 8px;
+            color: #5e4514;
+            padding: 0.85rem 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .prediction-title {
+            color: #18362c;
+            font-size: 1.55rem;
+            font-weight: 700;
+            margin: 0 0 0.2rem;
+        }
+
+        .prediction-label {
+            color: #3b7f5f;
+        }
+
+        .bird-description {
+            color: #40534b;
+            font-size: 1rem;
+            line-height: 1.55;
+            margin-top: 0.75rem;
+        }
+
+        .stProgress > div > div > div > div {
+            background-color: #3b7f5f;
+        }
+
+        div[data-testid="stMetric"] {
+            background: #eef5ef;
+            border: 1px solid #d5e4d6;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+        }
+
+        div[data-testid="stFileUploader"] {
+            background: #fbfcfb;
+            border: 1px dashed #a8b9ad;
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="app-header">
+        <h1>Bird Sound Classifier</h1>
+        <p>Upload a bird audio clip to identify the most likely species.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+st.markdown(
+    """
+    <div class="disclaimer">
+        <strong>Model disclaimer:</strong> Predictions may be inaccurate when audio quality is poor,
+        background noise is high, clips are very short, calls overlap, or species sound similar.
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 processor, model = load_model()
 bird_images = load_bird_images()
 
-audio_file = st.file_uploader("Upload Audio File", type=["wav", "mp3", "flac", "ogg"])
+st.markdown('<div class="section-panel"><h3>Audio Upload</h3>', unsafe_allow_html=True)
+audio_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "flac", "ogg"])
+st.markdown("</div>", unsafe_allow_html=True)
 
 if audio_file is not None:
     audio_bytes = audio_file.getvalue()
@@ -130,23 +241,37 @@ if audio_file is not None:
     with st.spinner("Analyzing audio..."):
         pred_label, confidence, sorted_probs = predict_audio(audio_bytes, suffix)
 
-    st.success(f"Predicted: **{display_bird_name(pred_label)}**")
-    st.metric("Confidence", f"{confidence:.2f}%")
-
     bird_image = bird_images.get(normalize_bird_name(pred_label))
-    if bird_image:
-        st.image(str(bird_image), caption=display_bird_name(pred_label), width=340)
-    elif pred_label.lower() != "background":
-        st.info("No matching bird image found in the Bird_img folder.")
-
     description = BIRD_DESCRIPTIONS.get(pred_label)
-    if description:
-        st.write(description)
+
+    st.markdown('<div class="section-panel">', unsafe_allow_html=True)
+    image_col, result_col = st.columns([0.9, 1.4], vertical_alignment="top")
+
+    with image_col:
+        if bird_image:
+            st.image(str(bird_image), caption=display_bird_name(pred_label), width=300)
+        elif pred_label.lower() != "background":
+            st.info("No matching bird image found in the Bird_img folder.")
+
+    with result_col:
+        st.markdown(
+            f"""
+            <p class="prediction-title">
+                Predicted: <span class="prediction-label">{display_bird_name(pred_label)}</span>
+            </p>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.metric("Confidence", f"{confidence:.2f}%")
+        if description:
+            st.markdown(f'<p class="bird-description">{description}</p>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if confidence < 60:
         st.warning("Low confidence - result may not be reliable")
 
-    st.subheader("Top 3 Predictions")
+    st.markdown('<div class="section-panel"><h3>Top 3 Predictions</h3>', unsafe_allow_html=True)
 
     for name, prob in sorted_probs:
         st.progress(float(prob), text=f"{display_bird_name(name)}: {prob * 100:.1f}%")
+    st.markdown("</div>", unsafe_allow_html=True)
