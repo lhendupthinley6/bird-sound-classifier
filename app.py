@@ -9,6 +9,9 @@ import torch
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2Processor
 
 
+st.set_page_config(page_title="Bird Sound Classifier", page_icon="bird", layout="wide")
+
+
 @st.cache_resource
 def load_model():
     model_path = "./bird_sound_classifier_final"
@@ -71,6 +74,32 @@ def display_bird_name(label):
     return label.replace("_", " ")
 
 
+def confidence_status(confidence):
+    if confidence >= 80:
+        return "Strong match"
+    if confidence >= 60:
+        return "Moderate match"
+    return "Needs review"
+
+
+def render_prediction_bar(label, probability):
+    percent = probability * 100
+    st.markdown(
+        f"""
+        <div class="prediction-row">
+            <div class="prediction-row-top">
+                <span>{display_bird_name(label)}</span>
+                <strong>{percent:.1f}%</strong>
+            </div>
+            <div class="bar-track">
+                <div class="bar-fill" style="width: {percent:.1f}%"></div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def prepare_waveform(audio_path):
     waveform, _ = librosa.load(audio_path, sr=16000, mono=True)
     waveform, _ = librosa.effects.trim(waveform, top_db=25)
@@ -109,73 +138,117 @@ def predict_audio(audio_bytes, suffix):
     return pred_label, confidence, top_predictions
 
 
-st.set_page_config(page_title="Bird Sound Classifier", page_icon="bird")
 st.markdown(
     """
     <style>
         .stApp {
-            background: #f6f8f4;
+            background: #f4f7f3;
         }
 
         .block-container {
-            max-width: 980px;
-            padding-top: 2rem;
+            max-width: 1120px;
+            padding-top: 1.5rem;
             padding-bottom: 3rem;
         }
 
-        .app-header {
-            border-left: 6px solid #3b7f5f;
-            padding: 0.15rem 0 0.3rem 1rem;
-            margin-bottom: 1.25rem;
+        h1, h2, h3, p {
+            letter-spacing: 0;
         }
 
-        .app-header h1 {
-            color: #18362c;
-            font-size: 2.2rem;
-            line-height: 1.15;
+        .hero {
+            background: #173c32;
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 1.45rem 1.6rem;
+            margin-bottom: 1rem;
+            border: 1px solid #0f2d26;
+        }
+
+        .eyebrow {
+            color: #b8d7c8;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            color: #ffffff;
+            font-size: 2.35rem;
+            line-height: 1.12;
             margin: 0;
         }
 
-        .app-header p {
-            color: #4c5f57;
+        .hero p {
+            color: #dcebe4;
             font-size: 1rem;
-            margin: 0.45rem 0 0;
+            margin: 0.55rem 0 0;
+            max-width: 760px;
         }
 
-        .section-panel {
+        .panel {
             background: #ffffff;
-            border: 1px solid #dfe7df;
+            border: 1px solid #dce5dd;
             border-radius: 8px;
-            padding: 1.1rem 1.2rem;
+            padding: 1rem 1.1rem;
             margin-bottom: 1rem;
-            box-shadow: 0 10px 24px rgba(35, 59, 48, 0.06);
+            box-shadow: 0 10px 22px rgba(24, 54, 44, 0.06);
         }
 
-        .section-panel h3 {
+        .panel h3 {
             color: #18362c;
-            font-size: 1.05rem;
-            margin: 0 0 0.65rem;
+            font-size: 1rem;
+            margin: 0 0 0.7rem;
+        }
+
+        .panel p {
+            color: #50645c;
+            line-height: 1.55;
+            margin: 0;
         }
 
         .disclaimer {
             background: #fff8e6;
             border: 1px solid #f0d48b;
-            border-left: 5px solid #c58b17;
+            border-left: 6px solid #c58b17;
             border-radius: 8px;
             color: #5e4514;
             padding: 0.85rem 1rem;
             margin-bottom: 1rem;
         }
 
+        .result-card {
+            background: #ffffff;
+            border: 1px solid #dce5dd;
+            border-radius: 8px;
+            padding: 1.1rem;
+            margin-top: 0.4rem;
+            box-shadow: 0 12px 28px rgba(24, 54, 44, 0.08);
+        }
+
         .prediction-title {
             color: #18362c;
-            font-size: 1.55rem;
+            font-size: 1.65rem;
             font-weight: 700;
-            margin: 0 0 0.2rem;
+            line-height: 1.15;
+            margin: 0 0 0.6rem;
         }
 
         .prediction-label {
             color: #3b7f5f;
+        }
+
+        .status-pill {
+            display: inline-block;
+            background: #e8f3ed;
+            border: 1px solid #cde0d4;
+            border-radius: 999px;
+            color: #245844;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 0.28rem 0.7rem;
+            margin-bottom: 0.8rem;
         }
 
         .bird-description {
@@ -185,22 +258,59 @@ st.markdown(
             margin-top: 0.75rem;
         }
 
-        .stProgress > div > div > div > div {
-            background-color: #3b7f5f;
-        }
-
         div[data-testid="stMetric"] {
-            background: #eef5ef;
-            border: 1px solid #d5e4d6;
+            background: #f3f8f4;
+            border: 1px solid #dce8dd;
             border-radius: 8px;
             padding: 0.75rem 1rem;
         }
 
         div[data-testid="stFileUploader"] {
-            background: #fbfcfb;
+            background: #fbfdfb;
             border: 1px dashed #a8b9ad;
             border-radius: 8px;
             padding: 0.75rem;
+        }
+
+        .prediction-row {
+            margin: 0.75rem 0;
+        }
+
+        .prediction-row-top {
+            align-items: center;
+            color: #2f4039;
+            display: flex;
+            font-size: 0.95rem;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+        }
+
+        .bar-track {
+            background: #e7eee8;
+            border-radius: 999px;
+            height: 0.68rem;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .bar-fill {
+            background: #3b7f5f;
+            border-radius: 999px;
+            height: 100%;
+        }
+
+        .empty-state {
+            background: #ffffff;
+            border: 1px solid #dce5dd;
+            border-radius: 8px;
+            color: #52645d;
+            padding: 1rem;
+        }
+
+        .small-note {
+            color: #60716a;
+            font-size: 0.9rem;
+            margin-top: 0.7rem;
         }
     </style>
     """,
@@ -209,9 +319,10 @@ st.markdown(
 
 st.markdown(
     """
-    <div class="app-header">
+    <div class="hero">
+        <div class="eyebrow">Audio recognition</div>
         <h1>Bird Sound Classifier</h1>
-        <p>Upload a bird audio clip to identify the most likely species.</p>
+        <p>Identify wetland and woodland bird species from short sound recordings, with image previews, confidence scores, and quick species notes.</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -229,49 +340,85 @@ st.markdown(
 processor, model = load_model()
 bird_images = load_bird_images()
 
-st.markdown('<div class="section-panel"><h3>Audio Upload</h3>', unsafe_allow_html=True)
-audio_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "flac", "ogg"])
-st.markdown("</div>", unsafe_allow_html=True)
+upload_col, info_col = st.columns([1.25, 0.75], gap="large")
+
+with upload_col:
+    st.markdown('<div class="panel"><h3>Upload Audio</h3>', unsafe_allow_html=True)
+    audio_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "flac", "ogg"])
+    st.markdown('<p class="small-note">Supported formats: WAV, MP3, FLAC, and OGG. Shorter clips with clear calls usually work best.</p>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with info_col:
+    st.markdown(
+        f"""
+        <div class="panel">
+            <h3>Model Setup</h3>
+            <p>Recognizes {len(SELECTED_CLASSES) - 1} bird species plus background audio. Long clips are trimmed to the first {MAX_AUDIO_SECONDS} seconds for faster analysis.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 if audio_file is not None:
     audio_bytes = audio_file.getvalue()
     suffix = os.path.splitext(audio_file.name)[1]
 
-    st.audio(audio_bytes)
+    audio_col, result_col = st.columns([0.85, 1.15], gap="large")
+
+    with audio_col:
+        st.markdown('<div class="panel"><h3>Audio Preview</h3>', unsafe_allow_html=True)
+        st.audio(audio_bytes)
+        st.markdown("</div>", unsafe_allow_html=True)
+
     with st.spinner("Analyzing audio..."):
         pred_label, confidence, sorted_probs = predict_audio(audio_bytes, suffix)
 
     bird_image = bird_images.get(normalize_bird_name(pred_label))
-    description = BIRD_DESCRIPTIONS.get(pred_label)
-
-    st.markdown('<div class="section-panel">', unsafe_allow_html=True)
-    image_col, result_col = st.columns([0.9, 1.4], vertical_alignment="top")
-
-    with image_col:
-        if bird_image:
-            st.image(str(bird_image), caption=display_bird_name(pred_label), width=300)
-        elif pred_label.lower() != "background":
-            st.info("No matching bird image found in the Bird_img folder.")
+    description = BIRD_DESCRIPTIONS.get(pred_label, "No description is available for this prediction.")
 
     with result_col:
+        st.markdown('<div class="result-card">', unsafe_allow_html=True)
         st.markdown(
             f"""
-            <p class="prediction-title">
-                Predicted: <span class="prediction-label">{display_bird_name(pred_label)}</span>
-            </p>
+            <div class="status-pill">{confidence_status(confidence)}</div>
+            <div class="prediction-title">
+                <span class="prediction-label">{display_bird_name(pred_label)}</span>
+            </div>
             """,
             unsafe_allow_html=True,
         )
-        st.metric("Confidence", f"{confidence:.2f}%")
-        if description:
-            st.markdown(f'<p class="bird-description">{description}</p>', unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+        metric_col, time_col = st.columns(2)
+        with metric_col:
+            st.metric("Confidence", f"{confidence:.2f}%")
+        with time_col:
+            st.metric("Analysis Window", f"{MAX_AUDIO_SECONDS}s max")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    detail_col, ranking_col = st.columns([0.9, 1.1], gap="large")
+
+    with detail_col:
+        st.markdown('<div class="panel"><h3>Species Preview</h3>', unsafe_allow_html=True)
+        if bird_image:
+            st.image(str(bird_image), caption=display_bird_name(pred_label), width=280)
+        elif pred_label.lower() != "background":
+            st.info("No matching bird image found in the Bird_img folder.")
+        st.markdown(f'<p class="bird-description">{description}</p>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with ranking_col:
+        st.markdown('<div class="panel"><h3>Top Matches</h3>', unsafe_allow_html=True)
+        for name, prob in sorted_probs:
+            render_prediction_bar(name, prob)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if confidence < 60:
         st.warning("Low confidence - result may not be reliable")
-
-    st.markdown('<div class="section-panel"><h3>Top 3 Predictions</h3>', unsafe_allow_html=True)
-
-    for name, prob in sorted_probs:
-        st.progress(float(prob), text=f"{display_bird_name(name)}: {prob * 100:.1f}%")
-    st.markdown("</div>", unsafe_allow_html=True)
+else:
+    st.markdown(
+        """
+        <div class="empty-state">
+            Upload an audio clip to see the prediction, confidence score, species image, and the top matching bird calls.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
