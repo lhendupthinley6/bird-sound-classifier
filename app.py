@@ -187,27 +187,6 @@ st.markdown(
             max-width: 760px;
         }
 
-        .panel {
-            background: #ffffff;
-            border: 1px solid #dce5dd;
-            border-radius: 8px;
-            padding: 1rem 1.1rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 10px 22px rgba(24, 54, 44, 0.06);
-        }
-
-        .panel h3 {
-            color: #18362c;
-            font-size: 1rem;
-            margin: 0 0 0.7rem;
-        }
-
-        .panel p {
-            color: #50645c;
-            line-height: 1.55;
-            margin: 0;
-        }
-
         .disclaimer {
             background: #fff8e6;
             border: 1px solid #f0d48b;
@@ -216,15 +195,6 @@ st.markdown(
             color: #5e4514;
             padding: 0.85rem 1rem;
             margin-bottom: 1rem;
-        }
-
-        .result-card {
-            background: #ffffff;
-            border: 1px solid #dce5dd;
-            border-radius: 8px;
-            padding: 1.1rem;
-            margin-top: 0.4rem;
-            box-shadow: 0 12px 28px rgba(24, 54, 44, 0.08);
         }
 
         .prediction-title {
@@ -266,10 +236,7 @@ st.markdown(
         }
 
         div[data-testid="stFileUploader"] {
-            background: #fbfdfb;
-            border: 1px dashed #a8b9ad;
-            border-radius: 8px;
-            padding: 0.75rem;
+            padding-top: 0.25rem;
         }
 
         .prediction-row {
@@ -312,6 +279,16 @@ st.markdown(
             font-size: 0.9rem;
             margin-top: 0.7rem;
         }
+
+        section[data-testid="stFileUploaderDropzone"] {
+            background: #fbfdfb;
+            border-color: #a8b9ad;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background: #ffffff;
+            box-shadow: 0 10px 22px rgba(24, 54, 44, 0.06);
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -340,35 +317,25 @@ st.markdown(
 processor, model = load_model()
 bird_images = load_bird_images()
 
-upload_col, info_col = st.columns([1.25, 0.75], gap="large")
+upload_col, info_col = st.columns([1.35, 0.75], gap="large")
 
 with upload_col:
-    st.markdown('<div class="panel"><h3>Upload Audio</h3>', unsafe_allow_html=True)
-    audio_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "flac", "ogg"])
-    st.markdown('<p class="small-note">Supported formats: WAV, MP3, FLAC, and OGG. Shorter clips with clear calls usually work best.</p>', unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.subheader("Upload Audio")
+        audio_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "flac", "ogg"])
+        st.caption("Supported formats: WAV, MP3, FLAC, and OGG. Shorter clips with clear calls usually work best.")
 
 with info_col:
-    st.markdown(
-        f"""
-        <div class="panel">
-            <h3>Model Setup</h3>
-            <p>Recognizes {len(SELECTED_CLASSES) - 1} bird species plus background audio. Long clips are trimmed to the first {MAX_AUDIO_SECONDS} seconds for faster analysis.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with st.container(border=True):
+        st.subheader("Model Setup")
+        st.write(
+            f"Recognizes {len(SELECTED_CLASSES) - 1} bird species plus background audio. "
+            f"Long clips are trimmed to the first {MAX_AUDIO_SECONDS} seconds for faster analysis."
+        )
 
 if audio_file is not None:
     audio_bytes = audio_file.getvalue()
     suffix = os.path.splitext(audio_file.name)[1]
-
-    audio_col, result_col = st.columns([0.85, 1.15], gap="large")
-
-    with audio_col:
-        st.markdown('<div class="panel"><h3>Audio Preview</h3>', unsafe_allow_html=True)
-        st.audio(audio_bytes)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     with st.spinner("Analyzing audio..."):
         pred_label, confidence, sorted_probs = predict_audio(audio_bytes, suffix)
@@ -376,40 +343,46 @@ if audio_file is not None:
     bird_image = bird_images.get(normalize_bird_name(pred_label))
     description = BIRD_DESCRIPTIONS.get(pred_label, "No description is available for this prediction.")
 
+    audio_col, result_col = st.columns([0.85, 1.15], gap="large")
+
+    with audio_col:
+        with st.container(border=True):
+            st.subheader("Audio Preview")
+            st.audio(audio_bytes)
+
     with result_col:
-        st.markdown('<div class="result-card">', unsafe_allow_html=True)
-        st.markdown(
-            f"""
-            <div class="status-pill">{confidence_status(confidence)}</div>
-            <div class="prediction-title">
-                <span class="prediction-label">{display_bird_name(pred_label)}</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        metric_col, time_col = st.columns(2)
-        with metric_col:
-            st.metric("Confidence", f"{confidence:.2f}%")
-        with time_col:
-            st.metric("Analysis Window", f"{MAX_AUDIO_SECONDS}s max")
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown(
+                f"""
+                <div class="status-pill">{confidence_status(confidence)}</div>
+                <div class="prediction-title">
+                    <span class="prediction-label">{display_bird_name(pred_label)}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            metric_col, time_col = st.columns(2)
+            with metric_col:
+                st.metric("Confidence", f"{confidence:.2f}%")
+            with time_col:
+                st.metric("Analysis Window", f"{MAX_AUDIO_SECONDS}s max")
 
     detail_col, ranking_col = st.columns([0.9, 1.1], gap="large")
 
     with detail_col:
-        st.markdown('<div class="panel"><h3>Species Preview</h3>', unsafe_allow_html=True)
-        if bird_image:
-            st.image(str(bird_image), caption=display_bird_name(pred_label), width=280)
-        elif pred_label.lower() != "background":
-            st.info("No matching bird image found in the Bird_img folder.")
-        st.markdown(f'<p class="bird-description">{description}</p>', unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.subheader("Species Preview")
+            if bird_image:
+                st.image(str(bird_image), caption=display_bird_name(pred_label), width=280)
+            elif pred_label.lower() != "background":
+                st.info("No matching bird image found in the Bird_img folder.")
+            st.markdown(f'<p class="bird-description">{description}</p>', unsafe_allow_html=True)
 
     with ranking_col:
-        st.markdown('<div class="panel"><h3>Top Matches</h3>', unsafe_allow_html=True)
-        for name, prob in sorted_probs:
-            render_prediction_bar(name, prob)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.subheader("Top Matches")
+            for name, prob in sorted_probs:
+                render_prediction_bar(name, prob)
 
     if confidence < 60:
         st.warning("Low confidence - result may not be reliable")
